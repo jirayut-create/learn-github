@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตรวจสอบ IP และประตู</title>
+    <script defer src="/static/script.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; }
+        #result { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>กรอกเลข IP และหมายเลขประตู</h1>
+
+    <input type="button" id="doorid" value="1">
+    <button onclick="opendoor()">ตรวจสอบ</button>
+    <div id="result"></div>
+</body>
+</html>
