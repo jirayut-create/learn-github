@@ -71,6 +71,17 @@ def fetch_data_from_tables(dll, handle, tables):
         if not data.startswith("\u274c"):
             break
 
+def fetch_data(dll, handle, tables):
+    """
+    ดึงข้อมูลจากตารางต่าง ๆ
+    """
+    for table in tables:
+        print(f"\nTrying to fetch data from table: {table}")
+        data = get_device_data(dll, handle, table)
+        print(f"[Data from {table}]\n", data)
+        if not data.startswith("\u274c"):
+            break
+
 
 def disconnect_device(dll, handle):
     dll.Disconnect.argtypes = [c_void_p]
