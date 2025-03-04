@@ -36,8 +36,8 @@ def fetch_datas(dll, handle, tables):
             #     print(record)
             
             # หากต้องการกรองข้อมูล เช่น ดึงเฉพาะผู้ใช้ที่มี
-            filtered_data = [record for record in datalist if record["Pin"] == "10005"]
-            print(filtered_data)
+            # filtered_data = [record for record in datalist if record["Pin"] == "10005"]
+            # print(filtered_data)
             
             break  # หยุดการทำงานเมื่อดึงข้อมูลสำเร็จ
         except Exception as e:

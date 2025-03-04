@@ -37,7 +37,7 @@ else:
             door_id = 2
             operation_id = 1  # 1 = ควบคุมการล็อค
             output_type = 1  # 1 = ล็อค
-            open_time = 5  # เปิดเป็นเวลา 5 วินาที
+            open_time = 2  # เปิดเป็นเวลา 5 วินาที
             reserved = 0  # ไม่ใช้
             options = c_char_p(b"")  # แก้ไขตรงนี้ ใช้ string ว่างแทน None
             
@@ -53,8 +53,8 @@ else:
                 print(f"🚪❌ เปิดประตู {door_id} ล้มเหลว! Error Code: {result}")
 
             # ปิดการเชื่อมต่อ
-            zkemkeeper.Disconnect.argtypes = [c_void_p]
-            zkemkeeper.Disconnect(connection_handle)
+            # zkemkeeper.Disconnect.argtypes = [c_void_p]
+            # zkemkeeper.Disconnect(connection_handle)
 
     except Exception as e:
         print(f"❌ เกิดข้อผิดพลาด: {e}")

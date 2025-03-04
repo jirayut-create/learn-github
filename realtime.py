@@ -1,221 +1,107 @@
-import ctypes
+from ctypes import *
 import os
-import logging
 import time
-from typing import List, Optional, Tuple
 
-# ตั้งค่า logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+def load_dll(dll_path):
+    """ โหลด DLL และกำหนดพารามิเตอร์ให้กับฟังก์ชัน """
+    if not os.path.exists(dll_path):
+        print(f"❌ File not found: {dll_path}")
+        return None
+    try:
+        dll = cdll.LoadLibrary(dll_path)
+        dll.Connect.argtypes = [c_char_p]
+        dll.Connect.restype = c_void_p
+        dll.GetRTLogExt.argtypes = [c_void_p, c_char_p, c_int]
+        dll.GetRTLogExt.restype = c_int
 
-# กำหนดตำแหน่งของ plcommpro.dll
-DLL_PATH = os.path.join(os.getcwd(), "plcommpro.dll")
-if not os.path.exists(DLL_PATH):
-    raise FileNotFoundError(f"Cannot find the DLL file at: {DLL_PATH}")
+        dll.Disconnect.argtypes = [c_void_p]
+        return dll
+    except Exception as e:
+        print(f"❌ Error loading DLL: {str(e)}")
+        return None
 
-# โหลด DLL
-try:
-    plcommpro = ctypes.CDLL(DLL_PATH)
-except Exception as e:
-    raise RuntimeError(f"Failed to load DLL: {e}")
+def connect_device(dll, ip, port, timeout=5000, password=""):
+    """ เชื่อมต่ออุปกรณ์ """
+    parameters = f"protocol=TCP,ipaddress={ip},port={port},timeout={timeout},passwd={password}"
+    handle = dll.Connect(parameters.encode('utf-8'))
+    if not handle or handle == 0:
+        raise ConnectionError("Failed to connect to device")
+    return handle
 
-# กำหนดประเภทของฟังก์ชันที่ใช้ใน DLL
-plcommpro.Connect.argtypes = [ctypes.c_char_p]
-plcommpro.Connect.restype = ctypes.c_void_p
+def parse_rtlog(log_data):
+    """ แปลงข้อมูลเหตุการณ์แบบเรียลไทม์ให้อ่านง่าย """
+    logs = log_data.strip().split("\r\n")  # แยกหลายบันทึก
+    parsed_logs = []
 
-plcommpro.Disconnect.argtypes = [ctypes.c_void_p]
-plcommpro.Disconnect.restype = None
+    for log in logs:
+        fields = log.split("\t")
+        log_dict = {}
+        for field in fields:
+            key_value = field.split("=")
+            if len(key_value) == 2:
+                log_dict[key_value[0]] = key_value[1]
+        
+        # แปลงค่า event
+        event_type = int(log_dict.get("event", -1))
+        event_desc = {
+            5: "เข้า",
+            6: "ออก",
+            200: "ประตูเปิด",
+            201: "ประตูปิด"
+        }.get(event_type, "ไม่ทราบเหตุการณ์")
 
-plcommpro.PullLastError.argtypes = []
-plcommpro.PullLastError.restype = ctypes.c_int
+        # แปลงค่า inoutstatus
+        inout_status = int(log_dict.get("inoutstatus", -1))
+        inout_desc = {0: "เข้า", 1: "ออก", 2: "ไม่มี"}.get(inout_status, "ไม่ทราบ")
 
-plcommpro.GetDeviceData.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-plcommpro.GetDeviceData.restype = ctypes.c_int
+        log_dict["event_desc"] = event_desc
+        log_dict["inout_desc"] = inout_desc
+        parsed_logs.append(log_dict)
+    
+    return parsed_logs
 
-plcommpro.SetDeviceData.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_char_p]
-plcommpro.SetDeviceData.restype = ctypes.c_int
+def get_real_time_logs(dll, handle):
+    """ ดึงข้อมูลเหตุการณ์แบบเรียลไทม์ """
+    buffer_size = 8192
+    buffer = create_string_buffer(buffer_size)
 
-plcommpro.DeleteDeviceData.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-plcommpro.DeleteDeviceData.restype = ctypes.c_int
+    print("📡 Starting real-time monitoring...")
+    try:
+        while True:
+            result = dll.GetRTLogExt(handle, buffer, buffer_size)
 
-plcommpro.ControlDevice.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p]
-plcommpro.ControlDevice.restype = ctypes.c_int
+            if result > 0:
+                log_data = buffer.value.decode('utf-8')
+                parsed_logs = parse_rtlog(log_data)
+                
+                for log in parsed_logs:
+                    print(f"📍 Event: {log}")
+            elif result == 0:
+                time.sleep(0.5)
+            else:
+                print(f"❌ Error fetching real-time logs. Code: {result}")
+                break
+    except KeyboardInterrupt:
+        print("⏹️ Stopping real-time monitoring.")
 
-plcommpro.GetDeviceParam.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_int, ctypes.c_char_p]
-plcommpro.GetDeviceParam.restype = ctypes.c_int
+def disconnect_device(dll, handle):
+    dll.Disconnect(handle)
+    print("🔌 Disconnected.")
+    
+    
 
-plcommpro.GetRTLog.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_byte), ctypes.c_int]
-plcommpro.GetRTLog.restype = ctypes.c_int
-
-
-class AccessPanel:
-    def __init__(self):
-        self._handle = None
-        self._fail_count = 0
-        self._last_event_time = "0000-00-00 00:00:00"
-
-    def get_last_error(self) -> int:
-        return plcommpro.PullLastError()
-
-    def is_connected(self) -> bool:
-        if self._handle:
-            if self._fail_count > 5:
-                self._fail_count = 0
-                self.disconnect()
-                return False
-            return True
-        return False
-
-    def disconnect(self):
-        if self.is_connected():
-            plcommpro.Disconnect(self._handle)
-            self._handle = None
-
-    def connect(self, ip: str, port: int, key: int, timeout: int) -> bool:
-        if self.is_connected():
-            return False
-
-        conn_str = f"protocol=TCP,ipaddress={ip},port={port},timeout={timeout},passwd={key if key != 0 else ''}"
-        self._handle = plcommpro.Connect(conn_str.encode('utf-8'))
-        return self._handle is not None
-
-    def get_fingerprint(self, pin: str, finger: int) -> Optional[dict]:
-        if not self.is_connected():
-            return None
-
-        buffer = (ctypes.c_byte * 2 * 1024 * 1024)()
-        field_names = "Size\tPin\tFingerID\tValid\tTemplate\tEndTag"
-        filter_str = f"Pin={pin},FingerID={finger},Valid=1"
-        read_result = plcommpro.GetDeviceData(self._handle, buffer, len(buffer), b"templatev10", field_names.encode('utf-8'), filter_str.encode('utf-8'), b"")
-
-        if read_result >= 0:
-            log_data = bytearray(buffer).decode('utf-8').strip('\x00')
-            # Parse log_data here (similar to FpReader in C#)
-            # This is a placeholder for parsing logic
-            return {"pin": pin, "finger": finger, "template": "parsed_template"}
-        else:
-            self._fail_count += 1
-            return None
-
-    def read_users(self) -> Optional[List[dict]]:
-        if not self.is_connected():
-            return None
-
-        buffer = (ctypes.c_byte * 20 * 1024 * 1024)()
-        read_result = plcommpro.GetDeviceData(self._handle, buffer, len(buffer), b"user", b"*", b"", b"")
-
-        if read_result >= 0:
-            log_data = bytearray(buffer).decode('utf-8').strip('\x00')
-            # Parse log_data here (similar to UsersReader in C#)
-            # This is a placeholder for parsing logic
-            users = [{"pin": "123", "name": "John Doe"}]  # Example data
-            return users
-        else:
-            self._fail_count += 1
-            return None
-
-    def delete_user(self, pin: str) -> bool:
-        if not self.is_connected():
-            return False
-
-        if plcommpro.DeleteDeviceData(self._handle, b"user", f"Pin={pin}".encode('utf-8'), b"") >= 0:
-            return True
-        else:
-            self._fail_count += 1
-            return False
-
-    def open_door(self, door_id: int, seconds: int) -> bool:
-        if not self.is_connected() or seconds < 1 or seconds > 60:
-            return False
-
-        if plcommpro.ControlDevice(self._handle, 1, door_id, 1, seconds, 0, b"") >= 0:
-            return True
-        else:
-            self._fail_count += 1
-            return False
-
-    def close_door(self, door_id: int) -> bool:
-        if not self.is_connected():
-            return False
-
-        if plcommpro.ControlDevice(self._handle, 1, door_id, 1, 0, 0, b"") >= 0:
-            return True
-        else:
-            self._fail_count += 1
-            return False
-
-    def get_door_count(self) -> int:
-        if not self.is_connected():
-            return -1
-
-        buffer = (ctypes.c_byte * 2048)()
-        if plcommpro.GetDeviceParam(self._handle, buffer, len(buffer), b"LockCount") >= 0:
-            lock_count_str = bytearray(buffer).decode('utf-8').strip('\x00').replace("LockCount=", "")
-            try:
-                return int(lock_count_str)
-            except ValueError:
-                return -1
-        else:
-            self._fail_count += 1
-            return -1
-
-    def get_event_log(self) -> Optional[dict]:
-        if not self.is_connected():
-            print('1')
-            return None
-
-    # สร้าง buffer ด้วย ctypes และใช้ ctypes.cast เพื่อแปลงเป็นพอยน์เตอร์
-        buffer_size = 2 * 1024 * 1024  # ขนาด buffer
-        buffer = (ctypes.c_byte * buffer_size)()  # สร้างอาร์เรย์ของ c_byte
-        buffer_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_byte))  # แปลงเป็นพอยน์เตอร์
-
-        if plcommpro.GetRTLog(self._handle, buffer_ptr, buffer_size) >= 0:
-            log_data = bytearray(buffer).decode('utf-8').strip('\x00')
-            events = log_data.split("\r\n")
-            parsed_events = []
-            for event in events:
-                if event:
-                    parts = event.split(',')
-                    if len(parts) == 7:
-                        parsed_events.append({
-                            "timestamp": parts[0],
-                            "pin": parts[1],
-                            "card": parts[2],
-                            "event_type": parts[3],
-                            "door": parts[4],
-                            "inout": parts[5],
-                            "verified": parts[6]
-                        })
-            return {"events": parsed_events}
-        else:
-            self._fail_count += 1
-            print('2')
-            return None
-
+def main():
+    dll_path = r"C:\learn-github\Pull_SDK\plcommpro.dll"
+    dll = load_dll(dll_path)
+    
+    if not dll:
+        return
+    
+    try:
+        handle = connect_device(dll, "192.168.1.222", 14370)
+        get_real_time_logs(dll, handle)  # ดึงข้อมูลแบบเรียลไทม์
+    finally:
+        disconnect_device(dll, handle)
 
 if __name__ == "__main__":
-    panel = AccessPanel()
-    if panel.connect("192.168.1.222", 14370, 0, 2000):
-        try:
-            event_log = panel.get_event_log()
-            if event_log:
-                logging.info(f"Event Log: {event_log}")
-        finally:
-            panel.disconnect()
-
-# if __name__ == "__main__":
-#     panel = AccessPanel()
-#     if panel.connect("192.168.1.222", 14370, 0, 2000):
-#         try:
-#             # users = panel.read_users()
-#             # if users:
-#             #     logging.info(f"Users: {users}")
-
-#             event_log = panel.get_event_log()
-#             if event_log:
-#                 logging.info(f"Event Log: {event_log}")
-
-#             panel.open_door(1, 5)  # Open door 1 for 5 seconds
-#             time.sleep(5)
-#             panel.close_door(1)  # Close door 1
-#         finally:
-#             panel.disconnect()
+    main()
