@@ -55,6 +55,8 @@ else:
             # ปิดการเชื่อมต่อ
             # zkemkeeper.Disconnect.argtypes = [c_void_p]
             # zkemkeeper.Disconnect(connection_handle)
+             # เชื่อมต่อกับอุปกรณ์
+            connection_handle = zkemkeeper.Connect(parameters.encode('utf-8'))
 
     except Exception as e:
         print(f"❌ เกิดข้อผิดพลาด: {e}")
