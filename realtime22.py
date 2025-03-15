@@ -1,11 +1,10 @@
+# การดึงข้อมูลเรีบลไทม์ยังช้าอยู่
+
 
 from ctypes import *
 import os
 import time
 import threading
-from module.conn import *
-
-
 
 def load_dll(dll_path):
     if not os.path.exists(dll_path):
@@ -19,8 +18,6 @@ def load_dll(dll_path):
         dll.GetDeviceData.restype = c_int
         dll.ControlDevice.argtypes = [c_void_p, c_long, c_long, c_long, c_long, c_long, c_char_p]
         dll.ControlDevice.restype = c_long
-        dll.DeleteDeviceData.argtypes = [c_void_p, c_char_p, c_char_p, c_char_p]
-        dll.DeleteDeviceData.restype = c_int
         dll.Disconnect.argtypes = [c_void_p]
         return dll
     except Exception as e:
@@ -80,27 +77,6 @@ def fetch_new_data(dll, handle, table_name, fetched_data):
     else:
         return "\u26A0 No new data found.", fetched_data
 
-
-def delete_transaction_data(dll, handle):
-    """
-    ลบข้อมูลทั้งหมดในตาราง transaction
-    """
-    table_name = "transaction"
-    data = ""  # ค่าว่างเพื่อลบทุกข้อมูลในตาราง
-    options = ""  # ค่าดีฟอลต์
-
-    result = dll.DeleteDeviceData(
-        handle,
-        table_name.encode('utf-8'),
-        data.encode('utf-8'),
-        options.encode('utf-8')
-    )
-
-    if result == 0:
-        print("\u2705 All data in table 'transaction' has been deleted.")
-    else:
-        print(f"\u274c Failed to delete data. Error Code: {result}")
-
 def disconnect_device(dll, handle):
     dll.Disconnect.argtypes = [c_void_p]
     dll.Disconnect(handle)
@@ -147,8 +123,6 @@ def main():
         return
 
     try:
-        # ลบข้อมูลในตาราง transaction
-        delete_transaction_data(dll, handle)
         # สร้างเธรดสำหรับดึงข้อมูลแบบเรียลไทม์
         realtime_thread = threading.Thread(
             target=realtime_data_fetch,

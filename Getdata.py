@@ -1,5 +1,7 @@
 from functionzk import *
 
+
+
 def fetch_datas(dll, handle, tables):
     """
     ดึงข้อมูลจากตารางต่าง ๆ
@@ -30,6 +32,7 @@ def fetch_datas(dll, handle, tables):
                 if line.strip():  # ตรวจสอบว่าไม่ใช่บรรทัดว่าง
                     values = line.split(",")
                     datalist.append(dict(zip(headers, values)))
+                    
             
             # แสดงผลข้อมูล ทั้งหมด
             # for record in datalist:
