@@ -50,13 +50,13 @@ def fetch_datas(dll, handle, tables):
 def main() :
     dll_path = r"C:\learn-github\Pull_SDK\plcommpro.dll"
     dll = load_dll(dll_path)
-    handle = connect_device(dll,"192.168.1.222",14370)
+    handle = connect_device(dll,"192.168.10.107",14370)
     open_time=5
     door_id = 1
     
     
      # ลองดึงข้อมูลผู้ใช้จากตารางต่าง ๆ
-    user_tables_to_try = ["transaction"]
+    user_tables_to_try = ["user"]
     fetch_datas(dll, handle, user_tables_to_try)
 
     

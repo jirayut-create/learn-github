@@ -33,9 +33,7 @@ async def check_ip(data: IPRequest):
         result = subprocess.run(
             ["python", "OpenDoor.py", data.ip,data.door], capture_output=True, text=True
         )
-
         response_text = result.stdout.strip()
-        
         # ✅ ตรวจสอบว่า output เป็น JSON จริงหรือไม่
         try:
             response_json = json.loads(response_text)
@@ -55,8 +53,7 @@ async def open_door(data: DoorRequest):
             ["python", "open.py", data.door], capture_output=True, text=True
         )
 
-        response_text = result.stdout.strip()
-        
+        response_text = result.stdout.strip()       
         # ✅ ตรวจสอบว่า output เป็น JSON จริงหรือไม่
         try:
             response_json = json.loads(response_text)

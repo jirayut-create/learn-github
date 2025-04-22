@@ -15,14 +15,13 @@ def main():
     table_name = "transaction"
     if not dll:
         return
-
     try:
         # ลบข้อมูลในตาราง transaction
         delete_data(dll, handle, table_name)
         # สร้างเธรดสำหรับดึงข้อมูลแบบเรียลไทม์
         realtime_thread = threading.Thread(
             target=realtime_data_fetch,
-            args=(dll, "192.168.1.222", 14370, "transaction")
+            args=(dll, "192.168.10.107", 14370, "transaction")
         )
         realtime_thread.daemon = True
         realtime_thread.start()
